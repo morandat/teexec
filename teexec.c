@@ -27,11 +27,12 @@ int spawncmd(char *cmd)
             NULL
         };
         close(fds[STDOUT_FILENO]);
+        dup2(fds[STDIN_FILENO], STDIN_FILENO);
         dup2(STDERR_FILENO, STDOUT_FILENO);
 
         if (execv(shell_cmd[0], shell_cmd)) {
-            perror("spawn");
-            exit(120);
+            perror("exec child");
+            exit(127);
         }
     }
     close(fds[STDIN_FILENO]);
@@ -45,18 +46,25 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Syntax: %s <cmd>", argv[0]);
         return 127;
     }
+
     int r;
     size_t buffsize = 4096;
     char buff[buffsize];
+
     signal(SIGCHLD, trap_child);
+    signal(SIGPIPE, trap_child);
+
     int fd = spawncmd(argv[1]);
+    if (fd == -1) return 127;
     child_alive = 1;
+
     while ((r = read(STDIN_FILENO, buff, buffsize)) > 0) {
         if (write(STDOUT_FILENO, buff, r) == -1) return 126;
         if (child_alive)
             if (write(fd, buff, r) == -1) return 125;
     }
     int status;
+    if (child_alive) close(fd);
     if (wait(&status) == -1) return 124;
     // TODO check if exited/signaled
     return WEXITSTATUS(status);
