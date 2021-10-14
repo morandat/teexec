@@ -61,7 +61,8 @@ int main(int argc, char *argv[])
     while ((r = read(STDIN_FILENO, buff, buffsize)) > 0) {
         if (write(STDOUT_FILENO, buff, r) == -1) return 126;
         if (child_alive)
-            if (write(fd, buff, r) == -1) return 125;
+            if (write(fd, buff, r) == -1)
+                child_alive = 0;
     }
     int status;
     if (child_alive) close(fd);
